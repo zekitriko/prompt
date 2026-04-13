@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  USER
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SupportedLocale {
+  az
+  ru
+  tr
+  en
+}
+
+enum AiTool {
+  CHATGPT
+  CLAUDE
+  GEMINI
+  MIDJOURNEY
+  COPILOT
+  OTHER
+}
+
+model User {
+  id           String          @id @default(cuid())
+  name         String?
+  email        String          @unique
+  passwordHash String?
+  role         UserRole        @default(USER)
+  locale       SupportedLocale @default(en)
+  isSuspended  Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Prompt {
+  id            String          @id @default(cuid())
+  slug          String          @unique
+  status        ContentStatus   @default(DRAFT)
+  featured      Boolean         @default(false)
+  tool          AiTool          @default(CHATGPT)
+  language      SupportedLocale @default(en)
+  viewsCount    Int             @default(0)
+  copiesCount   Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  translations  PromptTranslation[]
+  categoryLinks PromptCategoryLink[]
+  tagLinks      PromptTagLink[]
+}
+
+model PromptTranslation {
+  id                String          @id @default(cuid())
+  promptId          String
+  locale            SupportedLocale
+  title             String
+  shortDescription  String
+  fullPromptText    String
+  usageInstructions String?
+  exampleOutput     String?
+  seoTitle          String?
+  seoDescription    String?
+  prompt            Prompt          @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([promptId, locale])
+}
+
+model PromptCategory {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  translations PromptCategoryTranslation[]
+  prompts      PromptCategoryLink[]
+}
+
+model PromptCategoryTranslation {
+  id          String          @id @default(cuid())
+  categoryId  String
+  locale      SupportedLocale
+  name        String
+  description String?
+  category    PromptCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+}
+
+model PromptCategoryLink {
+  promptId   String
+  categoryId String
+  prompt     Prompt         @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  category   PromptCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([promptId, categoryId])
+}
+
+model PromptTag {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  active       Boolean  @default(true)
+  translations PromptTagTranslation[]
+  prompts      PromptTagLink[]
+}
+
+model PromptTagTranslation {
+  id     String          @id @default(cuid())
+  tagId  String
+  locale SupportedLocale
+  name   String
+  tag    PromptTag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, locale])
+}
+
+model PromptTagLink {
+  promptId String
+  tagId    String
+  prompt   Prompt    @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  tag      PromptTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([promptId, tagId])
+}
+
+model BlogPost {
+  id           String            @id @default(cuid())
+  slug         String            @unique
+  status       ContentStatus     @default(DRAFT)
+  publishedAt  DateTime?
+  translations BlogPostTranslation[]
+}
+
+model BlogPostTranslation {
+  id       String          @id @default(cuid())
+  postId   String
+  locale   SupportedLocale
+  title    String
+  excerpt  String?
+  content  String
+  post     BlogPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, locale])
+}
+
+model SiteSetting {
+  id              String          @id @default("site")
+  siteTitle       String          @default("Prompt Atlas")
+  defaultLocale   SupportedLocale @default(en)
+  seoDefaultTitle String?
+  seoDefaultDesc  String?
+}
